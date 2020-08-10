@@ -76,7 +76,10 @@
 
     </GridLayout>
 
-
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@android:color/darker_gray"/>
     <ListView
         android:id="@+id/listViewTargetCurrency"
         android:layout_width="match_parent"
@@ -84,20 +87,20 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="32dp"
+        android:layout_height="40dp"
         android:orientation="horizontal"
         android:weightSum="2"
         >
         <Button
             android:layout_width="match_parent"
-            android:layout_height="32dp"
+            android:layout_height="match_parent"
             android:text="History"
             android:id="@+id/historyButton"
             android:layout_weight="1"/>
         <Button
             android:id="@+id/addTargetCurrencyButton"
             android:layout_width="match_parent"
-            android:layout_height="32dp"
+            android:layout_height="match_parent"
             android:text="Add"
             android:layout_weight="1"
             />

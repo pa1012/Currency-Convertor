@@ -4,6 +4,8 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ListView;
 
 import java.util.ArrayList;
@@ -20,13 +22,22 @@ public class HistoryListShow extends AppCompatActivity {
 
     historyListView = findViewById(R.id.historyList);
 
-    Intent intent = getIntent();
+    final Intent intent = getIntent();
     historyList = (HistoryList) intent.getSerializableExtra("History");
 
-    ArrayList<HistoryConvert> historyConverts = historyList.list;
+    final ArrayList<HistoryConvert> historyConverts = historyList.list;
     historyAdapter = new HistoryAdapter(this,0,historyConverts);
     historyListView.setAdapter(historyAdapter);
 
+    historyListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+      @Override
+      public void onItemClick(AdapterView<?> adapterView, View view, int pos, long id) {
+        Intent intentOut = new Intent(HistoryListShow.this,ItemHistoryShow.class);
 
+        HistoryConvert historyConvert = historyConverts.get(pos);
+        intentOut.putExtra("HistoryItem", historyConvert);
+        startActivity(intentOut);
+      }
+    });
   }
 }
