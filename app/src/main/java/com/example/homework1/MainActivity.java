@@ -3,9 +3,14 @@ package com.example.homework1;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.loader.app.LoaderManager;
+import androidx.loader.content.Loader;
 
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.util.Log;
@@ -13,25 +18,20 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.GridLayout;
-import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.google.gson.Gson;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Serializable;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 
-public class MainActivity extends AppCompatActivity  {
+public class MainActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<Bundle> {
 
   private static final int NUMBER_OF_ITEMS = 10;
   private static final int NUMBER_OF_EQUAL= 123;
@@ -55,9 +55,11 @@ public class MainActivity extends AppCompatActivity  {
   Intent intentHistory;
 
   private HistoryList historyList = null;
- // private ArrayList<HistoryConvert> historyList = null;
   private SharedPreferences mPreferences;
   private SharedPreferences.Editor mEditor;
+
+  private String[] mQuery= {"VND_EUR", "VND_USD" , "VND_RUB", "VND_JPY"};
+  private Map<String, Double> rateMap = new HashMap<>();
 
   @Override
   protected void onSaveInstanceState(@NonNull Bundle outState) {
@@ -74,7 +76,21 @@ public class MainActivity extends AppCompatActivity  {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_main);
 
+    mPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+    mEditor = mPreferences.edit();
 
+    //update rate
+    if (isOnline())
+      updateCovertRate();
+    else {
+      Gson gson = new Gson();
+      String json = mPreferences.getString("Rate", "");
+      rateMap = gson.fromJson(json,Map.class);
+      if (rateMap == null){
+
+      }
+
+    }
     if (savedInstanceState != null)
     {
       amountCalculate = savedInstanceState.getString("amountBaseCurrency");
@@ -99,6 +115,9 @@ public class MainActivity extends AppCompatActivity  {
     currencyTargetAdapter = new TargetCurrencyAdapter(this,0,currencyTargetList);
     currencyTargetListView.setAdapter(currencyTargetAdapter);
 
+
+
+
     if (amountCalculate != "0.0" ) updateResult(amountCalculate);
 
     currencyTargetListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
@@ -116,6 +135,7 @@ public class MainActivity extends AppCompatActivity  {
     });
 
 
+
     createButtons(R.id.gridKeyNumber);
     setButtonOperatorHelper(R.id.divideBtn);
     setButtonOperatorHelper(R.id.multiplyBtn);
@@ -126,8 +146,7 @@ public class MainActivity extends AppCompatActivity  {
 
     //history setting
 
-    mPreferences = PreferenceManager.getDefaultSharedPreferences(this);
-    mEditor = mPreferences.edit();
+
 
     Gson gson = new Gson();
     String json = mPreferences.getString("History", "");
@@ -138,13 +157,15 @@ public class MainActivity extends AppCompatActivity  {
       historyList.list = new ArrayList<>();
     }
 
-    //set helper for button
+    //set helper for buttons
     Button btn = (Button) findViewById(NUMBER_OF_EQUAL);
     btn.setOnClickListener(new View.OnClickListener() {
       @Override
       public void onClick(View view) {
         TextView textEx = (TextView) findViewById(R.id.editTextAmount);
         String res = calculate(textEx.getText().toString());
+       // saveRate();
+        updateRateCurrencyList();
         updateResult(res);
         createHistory();
       }
@@ -166,22 +187,44 @@ public class MainActivity extends AppCompatActivity  {
 
   }
 
+  public boolean isOnline() {
+    ConnectivityManager connMgr = (ConnectivityManager)
+            getSystemService(Context.CONNECTIVITY_SERVICE);
+    NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
+    return (networkInfo != null && networkInfo.isConnected());
+  }
+  private void updateRateCurrencyList() {
+    for (int i =0 ; i < currencyList.size(); i++){
+      CurrencyInfo a = currencyList.get(i);
+      String s = "";
+      if (a.getCurrencyAbb().contains("USD")) s = "VND_" + "USD";
+        else
+          s = "VND_" + a.getCurrencyAbb();
+
+      a.setNumber(rateMap.get(s));
+    }
+  }
+
   @Override
   protected void onPause() {
+
     super.onPause();
     saveHistory();
+    saveRate();
   }
 
   @Override
   protected void onStop() {
     super.onStop();
     saveHistory();
+    saveRate();
   }
 
   @Override
   protected void onDestroy() {
     super.onDestroy();
     saveHistory();
+    saveRate();
   }
 
   private void createHistory(){
@@ -191,6 +234,8 @@ public class MainActivity extends AppCompatActivity  {
     historyList.add(a);
   }
 
+
+
   private void saveHistory(){
     Gson gson = new Gson();
     String json = gson.toJson(historyList);
@@ -198,6 +243,12 @@ public class MainActivity extends AppCompatActivity  {
     mEditor.commit();
   }
 
+  private void saveRate(){
+    Gson gson = new Gson();
+    String json = gson.toJson(rateMap);
+    mEditor.putString("Rate",json);
+    mEditor.commit();
+  }
 
   private void updateResult(String res) {
     amountCalculate = res;
@@ -234,6 +285,17 @@ public class MainActivity extends AppCompatActivity  {
 
   }
 
+  private void updateCovertRate() {
+    if (isOnline()){
+      for (int i=0; i<4; i++)
+      {
+        Bundle queryBundle = new Bundle();
+        queryBundle.putString("queryString", mQuery[i] );
+        getSupportLoaderManager().restartLoader(i, queryBundle, this);
+      }
+    }
+
+  }
   private double calculateAmount(double amount, double number) {
     return amount*number;
   }
@@ -474,15 +536,51 @@ public class MainActivity extends AppCompatActivity  {
 
   private ArrayList<CurrencyInfo> createCurrencyList(int n) {
     ArrayList<CurrencyInfo> res = new ArrayList<CurrencyInfo>();
-    double rate = 0.1;
-    for (int i = 0; i< n; i++) {
-      rate = rate + 0.1;
-      if (i%2==0)
-        res.add(new CurrencyInfo("USD" + String.valueOf(i),"United State Dollar " + String.valueOf(i), rate , R.drawable.flag));
-      else
-        res.add(new CurrencyInfo("USK" + String.valueOf(i),"UK dollar " + String.valueOf(i), rate , R.drawable.uk));
-    }
+
+    res.add(new CurrencyInfo("USD", "United State Dollar", 0, R.drawable.usa));
+    res.add(new CurrencyInfo("EUR","Euro dollar", 0, R.drawable.uk));
+    res.add(new CurrencyInfo("JPY","Japan",0,R.drawable.japan));
+    res.add(new CurrencyInfo("RUB","Russia",0,R.drawable.russia));
+    res.add(new CurrencyInfo("USD1", "United State Dollar 1", 0, R.drawable.usa));
+    res.add(new CurrencyInfo("USD2", "United State Dollar 2", 0, R.drawable.usa));
+    res.add(new CurrencyInfo("USD3", "United State Dollar 3", 0, R.drawable.usa));
+    res.add(new CurrencyInfo("USD4", "United State Dollar 4", 0, R.drawable.usa));
 
     return res;
+  }
+
+
+  @NonNull
+  @Override
+  public Loader<Bundle> onCreateLoader(int id, @Nullable Bundle args) {
+    String queryString = "";
+
+    if (args != null) {
+      queryString = args.getString("queryString");
+    }
+
+    return new RateLoader(this, queryString, id);
+  }
+
+  @Override
+  public void onLoadFinished(@NonNull Loader<Bundle> loader, Bundle data) {
+    if(data == null) {
+    }
+
+    String s = data.getString("val");
+    int a = data.getInt("pos");
+
+    try {
+      JSONObject jsonObject = new JSONObject(s);
+      String res = jsonObject.getString(mQuery[a]);
+      rateMap.put(mQuery[a], Double.parseDouble(res));
+    } catch (JSONException e) {
+      e.printStackTrace();
+    }
+  }
+
+  @Override
+  public void onLoaderReset(@NonNull Loader<Bundle> loader) {
+
   }
 }

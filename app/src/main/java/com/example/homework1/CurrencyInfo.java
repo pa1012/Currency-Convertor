@@ -13,13 +13,17 @@ public class CurrencyInfo implements Serializable, Parcelable {
   int image;
   boolean inTargetList;
 
+
+
   public CurrencyInfo(String s1, String s, double v, int img) {
     currencyAbb = s1;
     currencyName = s;
     number = v;
     image = img;
     inTargetList = false;
+
   }
+
 
   protected CurrencyInfo(Parcel in) {
     currencyAbb = in.readString();
